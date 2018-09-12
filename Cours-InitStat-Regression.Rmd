@@ -1,0 +1,366 @@
+---
+title: "Régression linéaire"
+author:
+  - name: Eric Marcon
+abstract: >
+  L'objectif du cours est de comprendre les facteurs qui influent sur la précision de l'estimation d'une régression linéaire, pour permettre de choisir un design expérimental adapté à la question posée.
+date: "`r format(Sys.time(), '%d %B %Y')`"
+pdftoc: yes
+preamble: >
+  \usepackage{textcomp}
+  \DeclareUnicodeCharacter{B0}{\textdegree}
+  \hyphenation{bio-di-ver-si-ty sap-lings}
+lang: french # english
+bibliography: references.bib
+output:
+  bookdown::gitbook: default
+  bookdown::word_document2: default
+  bookdown::pdf_book:
+    base_format: EcoFoG::memo
+    keep_tex: TRUE
+---
+
+<!-- Options de knitr et de R (librairies, ...) --> 
+
+```{r Options, echo=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, tidy=TRUE, tidy.opts=list(blank=FALSE, width.cutoff=50), out.width='\\maxwidth')
+options(width=50)
+# Installation des packages si nécessaire et chargement
+Library <- function(Packages) {
+  InstallAndLoad <- function(Package) {
+    if (!Package %in% installed.packages()[, 1]) {install.packages(Package, repos="https://cran.rstudio.com/")}
+    require(Package, character.only = TRUE)
+  }
+  invisible(sapply(Packages, InstallAndLoad))
+}
+# Ajouter les packages nécessaires ici
+Library(c("kableExtra", "tidyverse", "gridExtra"))
+# Reproductibilité.
+set.seed(973)
+```
+
+<!-- Début du document ci-dessous --> 
+
+# Contexte
+On estime l'effet de deux variables explicatives sur une variable expliquée dans un modèle de régression linéaire classique. 
+Les données sont manipulées pour mettre en évidence les effets du design expérimental.
+
+Le modèle est le suivant:
+$$y=a_1 x_1+a_2 x_2+b+\epsilon$$
+$y$ est la variable expliquée, $x_1$ et $x_2$ les variables explicatives. 
+$\epsilon$ est l'erreur du modèle, distribué comme une loi normale. 
+$a_1$, $a_2$ et $b$ sont les paramètres à estimer, appelés également _coefficients_.
+Le modèle peut aussi être écrit sous forme vectorielle : $\mathbf{Y}$ est le vecteur des valeurs de $y$, $\mathbf{X}$ la matrice dont les colonnes sont les valeurs de $x_1$ et $x_2$ et une colonne contenant la valeur 1, $\mathbf{\Theta}$ le vecteur des paramètres et $\mathbf{E}$ le vecteur contenant les résidus :
+$$\mathbf{Y}=\mathbf{X}\mathbf{\Theta}+\mathbf{E}$$
+
+# Fabrication des données
+
+On choisit les paramètres du modèle :
+```{r}
+a1 <- 2
+a2 <- 3
+b <- 1
+Theta <- c(a1, a2, b)
+```
+
+On tire 100 valeurs de X entre 0 et 100 de façon uniforme :
+```{r}
+NbX <- 100
+X1 <- runif(NbX)*100
+X2 <- runif(NbX)*100
+X <- cbind(X1, X2, rep(1, length(X1)))
+head(X)
+```
+
+L'erreur est tirée dans une loi normale centrée d'écart-type 100 :
+```{r}
+E <- rnorm(nrow(X))*100
+```
+
+Finalement, on calcule les valeurs de y :
+```{r}
+Y <- X %*% Theta + E
+```
+
+Les données sont représentées sur la figure \@ref(fig:donnees).
+
+
+# Estimation du modèle
+
+L'estimation du modèle est faite par la fonction _lm()_ de R :
+```{r}
+lm(Y~X1+X2) -> Regression
+summary(Regression)
+```
+
+Utiliser l'aide de R pour une explication détaillée du fonctionnement de la fonction.
+```{r, eval=FALSE}
+help(lm)
+```
+
+L'estimation des coefficients se trouve dans le tableau de résultat :
+
+- $\hat{b}=`r round(Regression$coefficients[1], 4)`$
+- $\hat{a}_1=`r round(Regression$coefficients["X1"], 4)`$
+- $\hat{a}_2=`r round(Regression$coefficients["X2"], 4)`$
+
+Les vraies valeurs sont 1, 2 et 3 : l'estimation n'est pas très bonne parce que l'erreur du modèle a été conçue pour être grande. 
+Les estimateurs ont un intervalle de confiance connu puisque l'erreur du modèle est normale. 
+On note $\sigma_{\hat{a}_1}$ l'écart-type de l'estimateur de $a_1$ et $t_{(n-3)}^\alpha$ la valeur critique de la loi de Student au seuil de risque $\alpha$ à $n-3$ degrés de liberté ($n$ est le nombre d'observations, auquel il faut retirer le nombre de variables explicatives plus 1 pour obtenir le nombre de degrés de liberté du modèle). 
+L'intervalle de confiance est donné par :
+$$a_1 = \hat{a}_1 \pm t_{(n-3)}^\alpha \frac{\sigma_{\hat{a}_1}}{\sqrt{n}}$$
+$t_{(n-3)}^\alpha$ vaut à peu près 2 si n n'est pas trop petit, au seuil de risque $\alpha=5\%$ (dit autrement, au seuil de confiance de 95%). 
+${\sigma_{\hat{a}_1}}/{\sqrt{n}}$  est appelée _erreur standard_ de l'estimateur et est affichée dans les sorties de _lm()_.
+Un test de Student est appliqué à chaque estimateur pour s'assurer qu'il est bien différent de 0 (ce qui signifierait que $y$ ne serait pas lié à cette variable explicative). 
+La probabilité de se tromper en rejetant l'hypothèse de la nullité de l'estimateur est affichée dans la dernière colonne. 
+Classiquement, on retient le coefficient si cette probabilité est inférieure à 5\%. 
+Dans notre exemple, la constante est peut-être nulle (on a 80,3\% de chance de se tromper en affirmant le contraire), les autres coefficients sont presque certainement non nuls (moins de 0,1\% de chances de se tromper, illustré par trois étoiles à côté de la probabilité).
+Le nuage de points peut être représenté graphiquement avec la librairie _scatterplot3d_ :
+```{r donnees, fig.cap="Représentation graphique de la régression linéaire à deux variables explicatives. L'estimation du modèle fournit un plan."}
+library("scatterplot3d")
+scatterplot3d(X1, X2, Y, highlight.3d = TRUE) ->s3d
+bhat <- Regression$coefficients[1]
+a1hat <- Regression$coefficients[2]
+a2hat <- Regression$coefficients[3]
+s3d$plane3d(bhat, a1hat, a2hat, lty.box = "solid")
+```
+
+La part de la variabilité de $Y$ expliquée par le modèle est quantifiée par son $R^2$ : `r round(var(X %*% c(a1hat, a2hat, bhat))/var(Y), 2)*100`\%. 
+Le reste (`r round(1-var(X %*% c(a1hat, a2hat, bhat))/var(Y), 2)*100`\%) est la variabilité non expliquée, celle de l'erreur du modèle : si elle était nulle, tous les points seraient situés sur le plan. 
+La valeur de $R^2$ est dans les sorties de _lm()_, on peut aussi la calculer directement :
+```{r}
+var(X %*% c(a1hat, a2hat, bhat)) / var(Y)
+```
+
+
+# Variations
+
+## Erreur du modèle
+
+L'estimation est bien meilleure si l'erreur du modèle est plus faible. Changeons la valeur de $\mathbf{E}$ :
+```{r}
+E <- rnorm(nrow(X))*10
+```
+
+L'écart-type de l'erreur est maintenant 10 fois plus petit. 
+Le reste du code est inchangé et on obtient :
+```{r e10, fig.cap="Données simulées comme dans la figure précédente, mais avec une erreur 10 fois moins importante. Les points sont très proches du plan de régression."}
+Y <- X %*% Theta + E
+lm(formula = Y ~ X1 + X2) -> Regression
+# Figure
+scatterplot3d(X1, X2, Y, highlight.3d = TRUE) -> s3d
+summary(Regression)
+bhat <- Regression$coefficients[1]
+a1hat <- Regression$coefficients[2]
+a2hat <- Regression$coefficients[3]
+s3d$plane3d(bhat, a1hat, a2hat, lty.box = "solid")
+```
+
+La variabilité de l'erreur est beaucoup plus faible, donc le $R^2$ est bien meilleur (plus de 99%). 
+Les paramètres $a_1$ et $a_2$ sont très bien estimés. 
+La constante n'est toujours pas estimée correctement : sa valeur réelle est trop proche de 0.
+
+## Nombre de points
+
+La valeur de $R^2$ peut fortement augmenter en diminuant le nombre de points. 
+Avec deux variables explicatives et trois points, $R^2=100\%$ quelles que soient les données (il ne passe qu'un seul plan par trois points).
+Voici un exemple où 5 points seulement sont utilisés pour estimer le même modèle, avec un écart-type de l'erreur égal à 200 :
+```{r reg5p, fig.cap="Modèle estimé avec 5 points seulement."}
+NbX <- 5
+X1 <- runif(NbX)*100
+X2 <- runif(NbX)*100
+X <- cbind(X1, X2, rep(1, length(X1)))
+E <- rnorm(nrow(X))*200
+Y <- X %*% Theta + E
+lm(formula = Y ~ X1 + X2) -> Regression
+summary(Regression)
+# Figure
+scatterplot3d(X1, X2, Y, highlight.3d = TRUE) -> s3d
+bhat <- Regression$coefficients[1]
+a1hat <- Regression$coefficients[2]
+a2hat <- Regression$coefficients[3]
+s3d$plane3d(bhat, a1hat, a2hat, lty.box = "solid")
+```
+
+$R^2$ est proche de 80\% mais aucun des coefficients n'est significativement différent de 0. 
+La valeur _ajustée_ de $R^2$ retire de la variance expliquée la part due au simple ajout de variables supplémentaires sans signification : elle permet de comparer la performance d'un modèle à un autre avec un nombre différent de variables.
+La statistique de Fisher du modèle complet indique une probabilité de se tromper en rejetant l'hypothèse que le modèle n'explique rien supérieure à 20%.
+$R^2$ n'est donc pas une indication de la qualité de l'estimation du modèle, seulement de la part de la variance expliquée. 
+Si le nombre d'observations est faible, $R^2$ peut être grand alors que le modèle n'explique rien. 
+Inversement, l'estimation des paramètres peut être assez bonne avec un $R^2$ faible si le modèle est est estimé à partir de nombreuses données dans lesquelles la variabilité individuelle est grande. 
+Avec 10000 observations et une erreur d'écart-type 100 :
+
+```{r, reg10000p, fig.cap="Modèle estimé avec 10000 points et une erreur importante."}
+NbX <- 10000
+X1 <- runif(NbX)*100
+X2 <- runif(NbX)*100
+X <- cbind(X1, X2, rep(1, length(X1)))
+E <- rnorm(nrow(X))*100
+Y <- X %*% Theta + E
+lm(formula = Y ~ X1 + X2) -> Regression
+summary(Regression)
+# Figure
+scatterplot3d(X1, X2, Y, highlight.3d = TRUE) -> s3d
+bhat <- Regression$coefficients[1]
+a1hat <- Regression$coefficients[2]
+a2hat <- Regression$coefficients[3]
+s3d$plane3d(bhat, a1hat, a2hat, lty.box = "solid")
+```
+
+$R^2$ reste similaire à celui de la première simulation : multiplier les observations n'a pas d'influence. 
+L'estimation des coefficients est 10 fois plus précise qu'avec 100 observations (l'erreur standard est proportionnelle à $1/\sqrt{n}$).
+
+## Calcul des éléments du modèle
+
+Le modèle peut être estimé pas à pas pour prévoir son comportement avant de réaliser l'expérience.
+A titre d'illustration (figure \@ref(fig:reg100)), 100 observations sont simulées, avec une erreur faible (écart-type égal à 10).
+```{r reg100, fig.cap="Modèle estimé avec 100 points et une faible erreur."}
+NbX <- 100
+X1 <- runif(NbX)*100
+X2 <- runif(NbX)*100
+X <- cbind(X1, X2, rep(1, length(X1)))
+E <- rnorm(nrow(X))*10
+Y <- X %*% Theta + E
+lm(formula = Y ~ X1 + X2) -> Regression
+summary(Regression)
+# Figure
+scatterplot3d(X1, X2, Y, highlight.3d = TRUE) -> s3d
+bhat <- Regression$coefficients[1]
+a1hat <- Regression$coefficients[2]
+a2hat <- Regression$coefficients[3]
+s3d$plane3d(bhat, a1hat, a2hat, lty.box = "solid")
+```
+
+La première étape consiste à calculer la matrice $\mathbf{\Sigma}=(\mathbf{X}'\mathbf{X})^{-1}$ :
+```{r}
+(Sigma <- solve(t(X)%*%X))
+```
+
+$\mathbf{\Sigma}$ peut être calculée avant de réaliser l'expérience, sans connaître les valeurs de $Y$.
+Après l'expérience, les paramètres peuvent être estimés en calculant $\mathbf{\Sigma}\mathbf{X}'\mathbf{Y}$ :
+```{r}
+Sigma %*% t(X) %*% Y
+```
+
+La racine carré de la diagonale de la matrice $\mathbf{\Sigma}$ multipliée par l'écart-type de l'erreur du modèle donne l'erreur standard de l'estimateur des coefficients :
+```{r}
+(SE <- sqrt(diag(Sigma))*sd(E))
+```
+
+L'intervalle de confiance (en plus ou en moins) est obtenu en multipliant l'erreur standard par $t$ :
+```{r}
+(t <- qt(1-(1-0.95)/2, nrow(X)-ncol(X)-1))
+SE*t
+```
+
+Les estimateurs des coefficients sont idéalement indépendants entre eux. 
+Ce n'est pas le cas en pratique si les valeurs de $\mathbf{X}$ ne le sont pas. 
+On peut calculer la corrélation entre les estimateurs :
+```{r}
+round(t(Sigma/sqrt(diag(Sigma)))/sqrt(diag(Sigma)), 3)
+```
+
+La corrélation entre $\hat{a}_1$ et $\hat{a}_2$ est égale à `r round((t(Sigma/sqrt(diag(Sigma)))/sqrt(diag(Sigma)))[1, 2], 3)`, très proche de 0.
+
+Simulons des valeurs de X très corrélées :
+```{r}
+X2 <- X1 * (1+runif(length(X1)))
+X <- cbind(X1, X2, rep(1, length(X1)))
+# Corrélation entre les coefficients
+(Sigma <- solve(t(X)%*%X))
+round(t(Sigma/sqrt(diag(Sigma)))/sqrt(diag(Sigma)), 3)
+```
+
+L'estimation du modèle reste bonne : 
+```{r}
+Y <- X %*% Theta + E
+lm(formula = Y ~ X1 + X2) -> Regression
+summary(Regression)
+```
+Les estimateurs de $\hat{a}_1$ et $\hat{a}_2$ ont pourtant une corrélation égale à `r round((t(Sigma/sqrt(diag(Sigma)))/sqrt(diag(Sigma)))[1, 2], 3)` : toute augmentation dans l'estimateur de l'un entraîne une diminution presque identique de l'estimateur de l'autre.
+La régression linéaire est très robuste face à la violation de ses hypothèses.
+
+
+# Design expérimental
+
+## Performance
+
+Les valeurs de $\mathbf{Y}$, et donc l'estimation des paramètres du modèle et de son erreur, ne sont connues qu'après l'expérience. 
+Mais les valeurs de $\mathbf{X}$ sont connues avant : leur choix est le design expérimental.
+L'objectif principal de l'estimation d'un modèle linéaire est l'estimation aussi précise que possible de ses paramètres. 
+Pour cela, l'erreur standard doit être aussi faible et le nombre d'observation aussi grand que possible.
+L'erreur standard des estimateurs est donnée par la diagonale de $\mathbf{\Sigma}=(\mathbf{X}'\mathbf{X})^{-1}$ multipliée par l'écart-type de l'erreur du modèle. 
+L'erreur du modèle dépendra des données, mais le design permet de minimiser la diagonale de $\mathbf{\Sigma}$.
+L'erreur standard est minimale pour tous les coefficients si toutes les combinaisons des valeurs extrêmes des variables explicatives sont utilisées [@Cochran1992] : ce design est appelé _design factoriel_. 
+Le nombre de combinaison est 2 à la puissance le nombre de facteurs ; dans notre exemple, les valeurs seraient :
+$$\mathbf{X} = \begin{pmatrix}
+   0   & 0   & 1 \\
+   0   & 100 & 1 \\
+   100 & 100 & 1 \\
+   100 & 100 & 1 \\
+\end{pmatrix}$$
+La valeur de l'erreur standard de chaque variable est connue dans ce cas : elle est égale à la moitié de l'écart entre les deux valeurs extrêmes de la variable explicative multipliée par le nombre d'observations.
+
+Si le design n'est pas factoriel, l'erreur standard des coefficients sera plus grande. 
+Le rapport entre l'erreur standard du design factoriel est celle du design choisi est appelé la performance du design [@Baraloto2010b]. 
+Avec les 100 observations uniformément distribuées de la simulation précédente, le calcul est le suivant :
+```{r}
+# Facteur d'échelle = écart-type des deux extrêmes
+S <- apply(X, 2, function (Xj) (max(Xj)-min(Xj))/2)
+# Performance
+(P <- 1/(S*sqrt(diag(Sigma)*nrow(X))))
+```
+
+Dans cet exemple, les valeurs des variables explicatives ont été choisies uniformément entre 0 et 100. 
+La performance du design est de `r round(P[1], 2)*100`% pour $x_1$ et `r round(P[2], 2)*100`% pour $x_2$, ce qui signifie que l'erreur standard de l'estimateur de $a_2$ est 5 fois plus grande que dans le design factoriel. 
+Toutes choses égales par ailleurs, il faudra 25 fois plus d'observations pour obtenir le même intervalle de confiance pour cet estimateur. 
+La dernière valeur (_Inf_) n'a pas de signification.
+
+La performance est nettement améliorée en se rapprochant du design factoriel :
+```{r regextreme, fig.cap="Elimination des valeurs intermédiaires des facteurs."}
+# Tirage de 2500 valeurs
+NbX <- 2500
+X1 <- runif(NbX)*100
+X2 <- runif(NbX)*100
+X <- cbind(X1, X2, rep(1, length(X1)))
+E <- rnorm(nrow(X))*100
+Y <- X %*% Theta + E
+# Elimination des valeurs intermédiaires (4% des points sont conservés)
+Extreme <- (X1 < 10 | X1> 90) & (X2 < 10 | X2> 90)
+X1 <- X1[Extreme]
+X2 <- X2[Extreme]
+X <- cbind(X1, X2, rep(1, length(X1)))
+E <- E[Extreme]
+Y <- X %*% Theta + E
+(Sigma <- solve(t(X)%*%X))
+# Facteur d'échelle = écart-type des deux extrêmes
+S <- apply(X, 2, function (Xj) (max(Xj)-min(Xj))/2)
+# Performance
+(P <- 1/(S*sqrt(diag(Sigma)*nrow(X))))
+# Figure
+lm(formula = Y ~ X1 + X2) -> Regression
+scatterplot3d(X1, X2, Y, highlight.3d = TRUE) -> s3d
+bhat <- Regression$coefficients[1]
+a1hat <- Regression$coefficients[2]
+a2hat <- Regression$coefficients[3]
+s3d$plane3d(bhat, a1hat, a2hat, lty.box = "solid")
+```
+
+
+La performance est ici proche 90% pour les deux variables.
+
+
+# Conclusion
+
+Choisir un design proche du design factoriel permet de minimiser l'erreur standard de l'estimation des paramètres du modèle. 
+La contrepartie est la perte d'information sur les valeurs intermédiaires : aucune information sur la linéarité du modèle n'est disponible si les seules valeurs extrêmes des facteurs sont retenues. 
+Ajouter des valeurs intermédiaires règle ce problème, mais a un coût en terme de performance qui peut être calculé.
+
+La corrélation entre les estimateurs est un problème plus théorique que pratique. 
+Son effet n'est pas énorme sur l'estimation, mais elle doit être évitée autant que possible. 
+Elle peut être calculée dès la construction de l'expérimentation.
+
+Le nombre d'observations est un choix économique : chaque fois qu'il est quadruplé, la précision est doublée (l'erreur standard est divisée par 2). 
+Il est donc très rentable de travailler sur le design expérimental.
+
+`r if (!knitr:::is_latex_output()) '# References {-}'`
