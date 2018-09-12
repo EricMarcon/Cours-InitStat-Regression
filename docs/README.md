@@ -1,9 +1,5 @@
-# Mémo
+# Initiation aux statistiques : Régression linéaire
 
-Description.
+Cours pour le [module FTH](https://www.ecofog.gf/spip.php?rubrique45)
 
-Adapter le lien ci-dessous pour pointer sur les pages web du dépôt et le fichier nommé comme la première section du mémo :
-
-[Lecture](https://Utilisateur.github.io/Depot/memo.html)
-
-Dupliquer ce fichier dans _/docs_ pour qu'il serve de page d'accueil du site web.
+[Lecture](https://github.com/EricMarcon/Cours-InitStat-TCL/contexte.html)
