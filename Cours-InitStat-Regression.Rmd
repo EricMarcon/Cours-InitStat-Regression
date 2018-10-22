@@ -13,7 +13,10 @@ preamble: >
 lang: french # english
 bibliography: references.bib
 output:
-  bookdown::gitbook: default
+  bookdown::gitbook: 
+    config:
+      download: 
+        - ["Cours-InitStat-Regression.pdf", "PDF"]
   bookdown::word_document2: default
   bookdown::pdf_book:
     base_format: EcoFoG::memo
