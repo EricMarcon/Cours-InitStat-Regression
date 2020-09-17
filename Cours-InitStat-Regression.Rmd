@@ -10,21 +10,22 @@ preamble: >
   \usepackage{textcomp}
   \DeclareUnicodeCharacter{B0}{\textdegree}
   \hyphenation{bio-di-ver-si-ty sap-lings}
-lang: french # english
+lang: fr-FR # en-US
+babel: french # english
 bibliography: references.bib
 always_allow_html: yes
 output:
-  bookdown::html_document2:
-    theme: sandstone
-    toc: yes
-    toc_float: yes
+  bookdown::pdf_book:
+    base_format: EcoFoG::memo
+    keep_tex: yes
   bookdown::gitbook:
     config:
       download: null
   bookdown::word_document2: default
-  bookdown::pdf_book:
-    base_format: EcoFoG::memo
-    keep_tex: yes
+  bookdown::html_document2:
+    theme: sandstone
+    toc: yes
+    toc_float: yes
 ---
 
 <!-- Options de knitr et de R (librairies, ...) --> 
@@ -260,6 +261,9 @@ L'intervalle de confiance (en plus ou en moins) est obtenu en multipliant l'erre
 SE*t
 ```
 
+
+## Variables explicatives corrélées
+
 Les estimateurs des coefficients sont idéalement indépendants entre eux. 
 Ce n'est pas le cas en pratique si les valeurs de $\mathbf{X}$ ne le sont pas. 
 On peut calculer la corrélation entre les estimateurs :
@@ -290,7 +294,7 @@ La régression linéaire est très robuste face à la violation de ses hypothès
 
 # Design expérimental
 
-## Performance
+## Design factoriel
 
 Les valeurs de $\mathbf{Y}$, et donc l'estimation des paramètres du modèle et de son erreur, ne sont connues qu'après l'expérience. 
 Mais les valeurs de $\mathbf{X}$ sont connues avant : leur choix est le design expérimental.
@@ -307,6 +311,9 @@ $$\mathbf{X} = \begin{pmatrix}
    100 & 100 & 1 \\
 \end{pmatrix}$$
 La valeur de l'erreur standard de chaque variable est connue dans ce cas : elle est égale à la moitié de l'écart entre les deux valeurs extrêmes de la variable explicative multipliée par le nombre d'observations.
+
+
+## Performance
 
 Si le design n'est pas factoriel, l'erreur standard des coefficients sera plus grande. 
 Le rapport entre l'erreur standard du design factoriel est celle du design choisi est appelé la performance du design [@Baraloto2010b]. 
@@ -352,7 +359,6 @@ a1hat <- Regression$coefficients[2]
 a2hat <- Regression$coefficients[3]
 s3d$plane3d(bhat, a1hat, a2hat, lty.box = "solid")
 ```
-
 
 La performance est ici proche 90% pour les deux variables.
 
